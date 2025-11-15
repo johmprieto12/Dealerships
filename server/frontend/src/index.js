@@ -10,3 +10,4 @@ root.render(
       <App />
     </BrowserRouter>
 );
+let login_url = window.location.origin + "/djangoapp/login/";
