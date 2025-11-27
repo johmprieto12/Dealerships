@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .populate import initiate
 
 from .models import CarMake, CarModel
-#from .restapis import get_dealers_from_cf
+from .restapis import get_request, analyze_review_sentiments, post_review
 
 
 # Get an instance of a logger
@@ -102,45 +102,44 @@ def registration(request):
 
 # # Update the `get_dealerships` view to render the index page with
 # a list of dealerships
-def get_dealerships(request):
-    if request.method == "GET":
-        url = "https://us-south.functions.appdomain.cloud/api/v1/web/<your-namespace>/<your-package>/api/dealership"
-        dealerships = get_dealers_from_cf(url)
-        context = {"dealership_list": dealerships}
-        return render(request, "djangoapp/index.html", context)
+def get_dealerships(request, state="All"):
+    if(state == "All"):
+        endpoint = "/fetchDealers"
+    else:
+        endpoint = "/fetchDealers/"+state
+    dealerships = get_request(endpoint)
+    return JsonResponse({"status":200,"dealers":dealerships})
 
 # Create a `get_dealer_reviews` view to render the reviews of a dealer
 def get_dealer_reviews(request, dealer_id):
-    url = "https://us-south.functions.appdomain.cloud/api/v1/web/<your-namespace>/<your-package>/api/review"
-    reviews = get_dealer_reviews_from_cf(url, dealer_id)
-    context = {"reviews": reviews, "dealer_id": dealer_id}
-    return render(request, 'djangoapp/dealer_reviews.html', context)
+    if(dealer_id):
+        endpoint = "/fetchReviews/dealer/"+str(dealer_id)
+        reviews = get_request(endpoint)
+        for review_detail in reviews:
+            response = analyze_review_sentiments(review_detail['review'])
+            print(response)
+            review_detail['setiment'] = reponse['sentiment']
+        return JsonResponse({"status":200,"reviews":reviews})
+    else:
+        return JsonResponse({"status":400,"message":"Bad Request"})
 
 # Create a `get_dealer_details` view to render the dealer details
 def get_dealer_details(request, dealer_id):
-    url = "https://us-south.functions.appdomain.cloud/api/v1/web/<your-namespace>/<your-package>/api/dealership"
-    dealer = get_dealer_by_id_from_cf(url, dealer_id)
-    context = {"dealer": dealer}
-    return render(request, 'djangoapp/dealer_details.html', context)
-
+    if(dealer_id):
+        endpoint = "/fetchDealer/"+str(dealer_id)
+        dealership = get_request(endpoint)
+        return JsonResponse({"status":200,"dealer":dealership})
+    else:
+        return JsonResponse({"status":400,"message":"Bad Request"})
 
 # Create a `add_review` view to submit a review
 def add_review(request):
-    if request.method == "POST":
-        review = {
-            "name": request.user.username,
-            "dealership": request.POST["dealer_id"],
-            "review": request.POST["review"],
-            "purchase": request.POST.get("purchase", False),
-            "purchase_date": request.POST.get("purchase_date", ""),
-            "car_make": request.POST.get("car_make", ""),
-            "car_model": request.POST.get("car_model", ""),
-            "car_year": request.POST.get("car_year", ""),
-        }
-
-        url = "https://us-south.functions.appdomain.cloud/api/v1/web/<your-namespace>/<your-package>/api/review"
-        json_payload = {"review": review}
-
-        post_request(url, json_payload)
-
-        return redirect("dealer_details", dealer_id=review["dealership"])
+    if(request.user.is_anonymous == False):
+        data = json.loads(request.body)
+        try:
+            response = post_review(data)
+            return JsonResponse({"status":200})
+        except:
+            return JsonResponse({"status":401,"message":"Error in posting review"})
+    else:
+        return JsonResponse({"status":403,"message":"Unauthorized"})y
