@@ -5,12 +5,18 @@ from urllib.parse import quote
 
 load_dotenv()
 
-backend_url = os.getenv('backend_url', default="http://localhost:3030")
-sentiment_analyzer_url = os.getenv(
-    'sentiment_analyzer_url',
-    default="http://localhost:5050"
+backend_url = os.getenv(
+    "backend_url",
+    default="https://johmprieto-8000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai"
 )
 
+sentiment_analyzer_url = os.getenv(
+    "sentiment_analyzer_url",
+    default="https://sentianalyzer.238pbp742ct5.us-south.codeengine.appdomain.cloud"
+)
+
+
+# GET Request Helper
 def get_request(endpoint, **kwargs):
     params = ""
     if kwargs:
@@ -26,6 +32,7 @@ def get_request(endpoint, **kwargs):
     except:
         print("Network exception occurred")
 
+# GET Request Helper
 def analyze_review_sentiments(text):
     encoded_text = quote(text)
     request_url = sentiment_analyzer_url + "/analyze/" + encoded_text
@@ -36,6 +43,7 @@ def analyze_review_sentiments(text):
         print(f"Unexpected {err=} {type(err)=}")
         print("Network exception occurred")
 
+# Sentiment Analyzer
 def post_review(data_dict):
     request_url = backend_url + "/insert_review"
     try:
